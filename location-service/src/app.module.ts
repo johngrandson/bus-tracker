@@ -12,11 +12,13 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { env } from 'process';
 import { PaymentModule } from '@/payment/payment.module';
+import { resolve } from 'path';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       validate: validateEnvironmentVariables,
+      envFilePath: resolve(__dirname, '../.env'),
       isGlobal: true,
       cache: true
     }),

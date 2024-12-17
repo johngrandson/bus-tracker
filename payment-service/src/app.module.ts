@@ -17,11 +17,13 @@ import { env } from 'process';
 import { UserModule } from '@/user/user.module';
 import { TicketModule } from '@/ticket/ticket.module';
 import { QRCodeService } from '@/qrcode/qrcode.service';
+import { resolve } from 'path';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       validate: validateEnvironmentVariables,
+      envFilePath: resolve(__dirname, '../.env'),
       isGlobal: true,
       cache: true
     }),
