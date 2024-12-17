@@ -1,0 +1,150 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders         Order[]
+  paymentMethods PaymentMethod[]
+  tickets        Ticket[]
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  user        User        @relation(fields: [userId], references: [id])
+  userId      String
+  status      OrderStatus @default(CREATED)
+  totalAmount Decimal
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  payments    Payment[]
+  reservation Reservation?
+  ticket      Ticket?
+
+  @@index([userId])
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  order          Order         @relation(fields: [orderId], references: [id])
+  orderId        String
+  amount         Decimal
+  currency       String
+  idempotencyKey String?       @unique
+  status         PaymentStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  transactions Transaction[]
+  refunds      Refund[]
+
+  @@index([orderId])
+}
+
+model Transaction {
+  id           String            @id @default(uuid())
+  payment      Payment           @relation(fields: [paymentId], references: [id])
+  paymentId    String
+  provider     String
+  status       TransactionStatus @default(PENDING)
+  errorMessage String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([paymentId])
+}
+
+model PaymentMethod {
+  id        String            @id @default(uuid())
+  user      User              @relation(fields: [userId], references: [id])
+  userId    String
+  type      PaymentMethodType
+  details   Json
+  createdAt DateTime          @default(now())
+
+  @@index([userId, type])
+}
+
+model Refund {
+  id             String       @id @default(uuid())
+  payment        Payment      @relation(fields: [paymentId], references: [id])
+  paymentId      String
+  provider       String
+  status         RefundStatus @default(PENDING)
+  idempotencyKey String?      @unique
+  errorMessage   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([paymentId])
+}
+
+model Reservation {
+  id        String   @id @default(uuid())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String   @unique
+  lockedBy  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Ticket {
+  id        String       @id @default(uuid())
+  order     Order        @relation(fields: [orderId], references: [id])
+  orderId   String       @unique
+  user      User         @relation(fields: [userId], references: [id])
+  userId    String
+  qrcode    String
+  status    TicketStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+}
+
+enum OrderStatus {
+  CREATED
+  PROCESSING
+  COMPLETED
+  CANCELED
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum PaymentMethodType {
+  CARD
+  PIX
+  BOLETO
+}
+
+enum TicketStatus {
+  PENDING
+  CONFIRMED
+  EXPIRED
+}

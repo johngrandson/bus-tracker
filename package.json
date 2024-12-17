@@ -1,0 +1,41 @@
+{
+  "name": "bus-tracker",
+  "author": {
+    "name": "João Netto <fleyefilms@gmail.com>"
+  },
+  "type": "module",
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "packageManager": "pnpm@9.14.4",
+  "scripts": {
+    "start:container": "./bin/init.sh",
+    "start:location": "pnpm --filter location-service start",
+    "start:payment": "pnpm --filter payment-service start",
+    "start:all": "pnpm --parallel run start",
+    "prepare": "husky",
+    "commitlint": "commitlint --edit",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "lint": "eslint",
+    "test": ""
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "commitizen": "^4.3.1",
+    "cz-conventional-changelog": "^3.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10"
+  },
+  "lint-staged": {
+    "src/**/*": [
+      "pnpm format",
+      "pnpm lint"
+    ]
+  },
+  "engines": {
+    "node": "^v22.12.0"
+  }
+}
