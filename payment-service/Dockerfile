@@ -27,5 +27,5 @@ COPY --from=base /app/package.json /app/pnpm-lock.yaml ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 
-EXPOSE 3000
+EXPOSE 3001
 CMD [ "pnpm", "start:prod" ]

@@ -3,26 +3,63 @@ services:
     image: postgres:15
     container_name: postgres-db
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: adminpassword
-      POSTGRES_DB: main_db
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-adminpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-main_db}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-  rabbitmq:
-    image: rabbitmq:management
+    networks:
+      - app-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  location-service:
+    container_name: location-service
+    build:
+      context: ./location-service
+      dockerfile: Dockerfile
     ports:
-      - "5672:5672"
-      - "15672:15672" # RabbitMQ Management UI
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    volumes:
-      - rabbitmq:/var/lib/rabbitmq
+      - "3000:3000"
+    env_file:
+      - ./location-service/.env
+    networks:
+      - app-network
+    depends_on:
+      - postgres
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  payment-service:
+    container_name: payment-service
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./payment-service/.env
+    networks:
+      - app-network
+    depends_on:
+      - postgres
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   pgdata:
-  rabbitmq:
-  location-env:
-  payment-env:
+    name: postgres_data

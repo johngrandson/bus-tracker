@@ -3,19 +3,28 @@ import { OrderService } from '@/order/order.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ReservationService } from '@/reservation/reservation.service';
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Module({
   imports: [
-    ClientsModule.register([
+    ClientsModule.registerAsync([
       {
-        name: 'RABBITMQ_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'order_queue',
-          queueOptions: { durable: true }
-        }
+        name: 'ORDER_SERVICE',
+        imports: [ConfigModule],
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.KAFKA,
+          options: {
+            client: {
+              clientId: configService.get<string>('KAFKA_CLIENT_ID') || 'payment-service',
+              brokers: [configService.get<string>('KAFKA_BROKER') || 'localhost:9092']
+            },
+            consumer: {
+              groupId: 'order-consumer'
+            }
+          }
+        })
       }
     ])
   ],

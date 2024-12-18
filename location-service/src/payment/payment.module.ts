@@ -2,20 +2,27 @@ import { Module } from '@nestjs/common';
 import { PaymentController } from '@/payment/payment.controller';
 import { PaymentService } from '@/payment/payment.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
-    ClientsModule.register([
+    ClientsModule.registerAsync([
       {
         name: 'PAYMENT_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'order_queue',
-          queueOptions: {
-            durable: true
+        imports: [ConfigModule],
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.KAFKA,
+          options: {
+            client: {
+              clientId: configService.get<string>('KAFKA_CLIENT_ID') || 'payment-service',
+              brokers: [configService.get<string>('KAFKA_BROKER') || 'localhost:9092']
+            },
+            consumer: {
+              groupId: 'order-producer'
+            }
           }
-        }
+        })
       }
     ])
   ],

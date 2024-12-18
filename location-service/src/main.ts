@@ -26,9 +26,9 @@ async function bootstrap() {
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(new GlobalExceptionFilter(app.get(HttpAdapterHost).httpAdapter));
 
-  await app.listen({ port: config.getOrThrow<number>(PORT) });
+  await app.listen({ port: config.getOrThrow<number>(PORT), host: '0.0.0.0' });
   console.log(
-    `[location service] is running on: http://localhost:${config.getOrThrow<number>('PORT')}`
+    `[location service] is running on: http://0.0.0.0:${config.getOrThrow<number>('PORT')}`
   );
 }
 void bootstrap();
