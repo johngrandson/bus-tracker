@@ -15,11 +15,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
           transport: Transport.KAFKA,
           options: {
             client: {
-              clientId: configService.get<string>('KAFKA_CLIENT_ID') || 'payment-service',
-              brokers: [configService.get<string>('KAFKA_BROKER') || 'localhost:9092']
+              clientId: 'payment',
+              brokers: [configService.get<string>('KAFKA_BROKER') || 'localhost:9093']
             },
             consumer: {
-              groupId: 'order-producer'
+              groupId: 'payment-consumer'
             }
           }
         })

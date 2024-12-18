@@ -4,6 +4,7 @@ import { GlobalExceptionFilter } from '@/filters/exception/global-exception.filt
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -25,6 +26,18 @@ async function bootstrap() {
   app.enableCors();
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(new GlobalExceptionFilter(app.get(HttpAdapterHost).httpAdapter));
+
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.KAFKA,
+    options: {
+      client: {
+        brokers: [config.getOrThrow<string>('KAFKA_BROKER') || 'localhost:9093']
+      },
+      consumer: {
+        groupId: 'payment-consumer'
+      }
+    }
+  });
 
   await app.startAllMicroservices();
   await app.listen({ port: config.getOrThrow<number>(PORT), host: '0.0.0.0' });

@@ -17,8 +17,8 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
           transport: Transport.KAFKA,
           options: {
             client: {
-              clientId: configService.get<string>('KAFKA_CLIENT_ID') || 'payment-service',
-              brokers: [configService.get<string>('KAFKA_BROKER') || 'localhost:9092']
+              clientId: 'order',
+              brokers: [configService.get<string>('KAFKA_BROKER') || 'localhost:9093']
             },
             consumer: {
               groupId: 'order-consumer'

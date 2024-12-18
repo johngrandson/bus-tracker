@@ -10,12 +10,18 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - kafka-network
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "512m"
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -25,27 +31,37 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    extra_hosts:
-      - "host.docker.internal:172.17.0.1"
+    networks:
+      - kafka-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256m"
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
     ports:
       - "9092:9092"
-      - "9094:9094"
+      - "9093:9093"
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_LISTENERS: INTERNAL://:9092,OUTSIDE://:9094
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,OUTSIDE://host.docker.internal:9094
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT_INTERNAL://0.0.0.0:9093,PLAINTEXT_EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_INTERNAL://kafka:9093,PLAINTEXT_EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     depends_on:
       - zookeeper
     networks:
       - kafka-network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: "1g"
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -54,12 +70,62 @@ services:
       - "8080:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local-cluster
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092  # Nome do serviço "kafka"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     depends_on:
       - kafka
       - zookeeper
+    networks:
+      - kafka-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256m"
 
+  location-service:
+    build:
+      context: ./location-service
+      dockerfile: Dockerfile
+    container_name: location-service
+    ports:
+      - "3000:3000"
+    networks:
+      - kafka-network
+    env_file: 
+      - ./location-service/.env
+    depends_on:
+      - kafka
+      - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: "0.8"
+          memory: "512m"
+
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - "3001:3001"
+    networks:
+      - kafka-network
+    env_file: 
+      - ./payment-service/.env
+    depends_on:
+      - kafka
+      - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: "0.8"
+          memory: "512m"
+
+networks:
+  kafka-network:
+    driver: bridge
 
 volumes:
   pgdata:

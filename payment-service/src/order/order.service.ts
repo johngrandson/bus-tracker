@@ -1,10 +1,10 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import { ReservationService } from '@/reservation/reservation.service';
-import { Inject, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ClientKafka } from '@nestjs/microservices';
 
 @Injectable()
-export class OrderService implements OnModuleInit {
+export class OrderService {
   private readonly logger = new Logger(OrderService.name);
 
   constructor(
@@ -13,33 +13,54 @@ export class OrderService implements OnModuleInit {
     @Inject('ORDER_SERVICE') private readonly kafka: ClientKafka
   ) {}
 
-  async onModuleInit() {
-    this.kafka.subscribeToResponseOf('process.payment');
-    await this.kafka.connect();
+  async create(data: { userId: string; totalAmount: number }) {
+    try {
+      const userExists = await this.prisma.user.findUnique({
+        where: { id: data.userId }
+      });
+
+      if (!userExists) {
+        throw new NotFoundException(`User with ID ${data.userId} does not exist.`);
+      }
+
+      const order = await this.prisma.order.create({
+        data: {
+          userId: data.userId,
+          totalAmount: data.totalAmount,
+          status: 'CREATED'
+        }
+      });
+      this.logger.log(`Order with ID ${order.id} created successfully`);
+
+      this.logger.log(`Processing payment for order ID ${order.id}`);
+      void this.process(order, data);
+
+      return order;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.kafka.emit('process.payment.error', {
+        error: errorMessage,
+        userId: data.userId
+      });
+      this.logger.error(`Emitted process.payment.error event with error: ${errorMessage}`);
+    }
   }
 
-  async create(data: { userId: string; totalAmount: number }) {
-    const userExists = await this.prisma.user.findUnique({
-      where: { id: data.userId }
-    });
+  async process(order: { id: string }, data: { userId: string }) {
+    try {
+      await this.reservationService.reserve(order.id, data.userId, 30);
+      await this.updateStatus(order.id, 'PROCESSING');
 
-    if (!userExists) {
-      throw new NotFoundException(`User with ID ${data.userId} does not exist.`);
+      this.kafka.emit('process.payment.success', { ...order, userId: data.userId });
+      this.logger.log(`Emitted process.payment.success event for order ID ${order.id}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.kafka.emit('process.payment.error', {
+        error: errorMessage,
+        userId: data.userId
+      });
+      this.logger.error(`Emitted process.payment.error event with error: ${errorMessage}`);
     }
-
-    const order = await this.prisma.order.create({
-      data: {
-        userId: data.userId,
-        totalAmount: data.totalAmount,
-        status: 'CREATED'
-      }
-    });
-
-    this.logger.log(`Order with ID ${order.id} created successfully`);
-
-    await this.reservationService.reserve(order.id, data.userId, 30);
-    this.kafka.send('process.payment', { ...order, userId: data.userId });
-    this.logger.log(`Emitted process.payment event for order ID ${order.id}`);
   }
 
   async updateStatus(orderId: string, status: 'CREATED' | 'COMPLETED' | 'PROCESSING' | 'CANCELED') {

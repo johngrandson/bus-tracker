@@ -11,7 +11,7 @@ export const options = {
 
 export default function () {
   const payload = JSON.stringify({
-    userId: "150049ac-5098-4232-a1a7-563131f1c595",
+    userId: "72b60d56-8075-4acd-9c42-1d5438d29054",
     totalAmount: 100,
   });
 
